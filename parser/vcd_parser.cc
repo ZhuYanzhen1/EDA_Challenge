@@ -85,12 +85,8 @@ void VCDParser::vcd_statistic_signal_(uint64_t current_timestamp,
     signal->last_timestamp = current_timestamp;
 
     if (time_difference != 0) {
-        bool case0 =
-            signal->last_level_status == 'x' && signal->final_level_status != 'x' && current_level_status != 'x';
-        bool case1 =
-            signal->last_level_status != 'x' && signal->final_level_status == 'x' && current_level_status == 'x';
-
-        if (signal->last_level_status != signal->final_level_status && !(case0 || case1))
+        if (signal->last_level_status != signal->final_level_status
+            && (signal->last_level_status != 'x' || current_level_status == 'x'))
             signal->total_invert_counter++;
         if (signal->last_level_status != 'x')
             signal->final_level_status = signal->last_level_status;
@@ -261,8 +257,7 @@ void VCDParser::vcd_signal_flip_post_processing_(uint64_t current_timestamp,
         }
 
         /* Count total change times of signals */
-        if ((it->second.last_level_status != it->second.final_level_status)
-            && (it->second.final_level_status != 'x'))
+        if (it->second.last_level_status != it->second.final_level_status)
             it.value().total_invert_counter++;
         if (it->second.total_invert_counter != 0)
             it.value().total_invert_counter--;
