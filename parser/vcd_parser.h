@@ -16,6 +16,7 @@
 #include <iostream>
 #include <sys/file.h>
 #include <csignal>
+#include "unistd.h"
 #include "system.h"
 #include "hopscotch_map.h"
 
