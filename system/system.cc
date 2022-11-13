@@ -11,10 +11,8 @@
 #include <sys/stat.h>
 #include "gitver.h"
 #include <sched.h>
-#include <pthread.h>
 #include <sys/resource.h>
 #include <sys/file.h>
-#include <csignal>
 #include <unistd.h>
 
 /*!
@@ -58,4 +56,36 @@ void SystemInfo::set_priority_to_max() noexcept {
     struct sched_param param_{};
     param_.sched_priority = sched_get_priority_max(SCHED_FIFO); // SCHED_RR
     sched_setscheduler(getpid(), SCHED_RR, &param_);
+}
+
+static char read_buffer[1024 * 1024 * 128] = {0}, next_read_char = 0, last_line_flag = 0;
+ssize_t current_read_number = 0, current_read_pos = 0, last_read_pos = 0;
+char *my_fgetline(int fd) {
+    if (last_line_flag == 1)
+        return nullptr;
+    process_buffer_again:
+    last_read_pos = current_read_pos;
+    read_buffer[current_read_pos] = next_read_char;
+    while (read_buffer[current_read_pos++] != '\n' && current_read_pos != current_read_number);
+    next_read_char = read_buffer[current_read_pos];
+    read_buffer[current_read_pos] = read_buffer[current_read_pos - 1] = '\0';
+    if (current_read_pos == current_read_number) {
+        if (current_read_number < sizeof(read_buffer)) {
+            last_line_flag = 1;
+            return &read_buffer[last_read_pos];
+        }
+        lseek(fd, last_read_pos - current_read_pos, SEEK_CUR);
+        current_read_number = read(fd, read_buffer, sizeof(read_buffer));
+        current_read_pos = 0, last_read_pos = 0;
+        next_read_char = read_buffer[0];
+        goto process_buffer_again;
+    }
+    return &read_buffer[last_read_pos];
+}
+
+int my_fopen(const std::string &filename) {
+    int fd = open(filename.c_str(), O_RDONLY);
+    current_read_number = read(fd, read_buffer, sizeof(read_buffer));
+    next_read_char = read_buffer[0];
+    return fd;
 }

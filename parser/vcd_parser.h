@@ -14,6 +14,9 @@
 #include <map>
 #include <list>
 #include <iostream>
+#include <sys/file.h>
+#include <csignal>
+#include "system.h"
 #include "hopscotch_map.h"
 
 struct VCDHeaderStruct {
@@ -43,14 +46,14 @@ struct VCDSignalStatisticStruct {
 class VCDParser {
  public:
   explicit VCDParser(const std::string &filename) {
-      static char filebuffer[1024 * 1024 * 128] = {0};
-      fp_ = fopen64(filename.c_str(), "r");
+      fp_ = my_fopen(filename);
+      draw_fp_ = fopen64(filename.c_str(), "r");
       std::cout << "\nOpen file: " << filename << "\n";
       parse_vcd_header_();
-      setbuffer(fp_, filebuffer, sizeof(filebuffer));
   }
   ~VCDParser() {
-      fclose(fp_);
+      close(fp_);
+      fclose(draw_fp_);
       vcd_signal_list_.clear();
       vcd_signal_flip_table_.clear();
       vcd_signal_alias_table_.clear();
@@ -76,7 +79,8 @@ class VCDParser {
                                      std::vector<double> *y_value);
 
  private:
-  FILE *fp_;
+  int fp_;
+  FILE *draw_fp_;
   struct VCDHeaderStruct vcd_header_struct_{};
 
   tsl::hopscotch_map<std::string, std::list<uint64_t>> signal_glitch_position_;

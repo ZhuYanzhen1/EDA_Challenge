@@ -10,6 +10,10 @@
 #define EDA_CHALLENGE_SYSTEM_SYSTEM_H_
 
 #include <string>
+
+char *my_fgetline(int fd);
+int my_fopen(const std::string &filename);
+
 class SystemInfo {
  public:
   static void DisplayCompileInfo(const std::string &version);
