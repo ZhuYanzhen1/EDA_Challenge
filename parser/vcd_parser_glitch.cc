@@ -53,6 +53,10 @@ void VCDParser::vcd_statistic_signal_(uint64_t current_timestamp,
             signal->total_invert_counter++;
         if (signal->last_level_status != 'x')
             signal->final_level_status = signal->last_level_status;
+    } else {
+        if (burr_hash_table->find(signal_alias) == burr_hash_table->end())
+            burr_hash_table->insert(std::pair<std::string, int8_t>(signal_alias, {0}));
+        signal->total_glitch_counter++;
     }
     signal->last_level_status = current_level_status;
 }
