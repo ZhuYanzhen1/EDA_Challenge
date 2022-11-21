@@ -86,7 +86,6 @@ void VCDParser::vcd_statistic_signal_(uint64_t current_timestamp,
                                       struct VCDSignalStatisticStruct *signal,
                                       char current_level_status, const std::string &signal_alias) {
     uint64_t time_difference = current_timestamp - signal->last_timestamp;
-    bool last_level_unequal_x = true;
 
     /* Statistics of each signal flip time */
     switch (signal->last_level_status) {
@@ -95,17 +94,20 @@ void VCDParser::vcd_statistic_signal_(uint64_t current_timestamp,
         case '0':signal->signal0_time += time_difference;
             break;
         case 'x':signal->signalx_time += time_difference;
-            last_level_unequal_x = false;
             break;
     }
     signal->last_timestamp = current_timestamp;
 
     /* Count the number of flips of each signal */
     if (time_difference != 0) {
-        if (signal->last_level_status != signal->final_level_status
-            && (last_level_unequal_x || current_level_status == 'x'))
+        bool case0 =
+            signal->last_level_status == 'x' && signal->final_level_status != 'x' && current_level_status != 'x';
+        bool case1 =
+            signal->last_level_status != 'x' && signal->final_level_status == 'x' && current_level_status == 'x';
+
+        if (signal->last_level_status != signal->final_level_status && !(case0 || case1))
             signal->total_invert_counter++;
-        if (last_level_unequal_x)
+        if (signal->last_level_status != 'x')
             signal->final_level_status = signal->last_level_status;
     }
     signal->last_level_status = current_level_status;
@@ -150,7 +152,8 @@ void VCDParser::initialize_vcd_signal_flip_table_() {
 
             /* Split the vector signals to scalar signals by its bit, and parse them one by one. */
             for (unsigned long count = signal_length - 1; count > 0; count--) {
-                std::string temp_alias = signal_alias + std::string("[") + std::to_string(count - 1) + std::string("]");
+                std::string
+                    temp_alias = signal_alias + std::string("[") + std::to_string(count - 1) + std::string("]");
 
                 /* Insert signal into vcd_signal_flip_table_ and initialize the content */
                 if (vcd_signal_flip_table_.find(temp_alias) == vcd_signal_flip_table_.end()) {
