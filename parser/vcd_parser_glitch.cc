@@ -613,7 +613,8 @@ void VCDParser::get_vcd_signal_flip_info(bool enable_gitch) {
     std::unordered_map<std::string, int8_t> burr_hash_table;
     fseeko64(fp_, second_position_, SEEK_SET);
     while (fgets(reading_buffer, sizeof(reading_buffer), fp_) != nullptr) {
-        size_t last_word_position = strlen(reading_buffer) - 1;
+        reading_buffer[strlen(reading_buffer) - 1] = '\0';
+        std::string read_string = reading_buffer;
 
         /* Print glitches information */
         if (reading_buffer[0] == '#') {
@@ -626,15 +627,13 @@ void VCDParser::get_vcd_signal_flip_info(bool enable_gitch) {
 
         /* If meet b,parse the signal as vector standard */
         if (reading_buffer[0] == 'b') {
-            reading_buffer[last_word_position] = '[';
-            size_t first_pos = std::string(reading_buffer).find_first_of(' ');
-            size_t signal_length = first_pos;
-            std::string signal_alias = std::string(&reading_buffer[first_pos + 1]);
+            std::string signal_alias = read_string.substr(read_string.find_last_of(' ') + 1, read_string.length());
+            unsigned long signal_length = (read_string.substr(1, read_string.find_first_of(' '))).length();
 
             /* Split the vector signals to scalar signals by its bit ,and parse them one by one */
             for (unsigned long count = signal_length - 1; count > 0; count--) {
                 /* Find position of matched signals, if current status is unequal to last status of the signal, parse the signal */
-                std::string temp_alias = signal_alias + std::to_string(count - 1) + std::string("]");
+                std::string temp_alias = signal_alias + std::string("[") + std::to_string(count - 1) + std::string("]");
                 auto iter = vcd_signal_flip_table_.find(temp_alias);
                 if (reading_buffer[signal_length - count] != iter->second.last_level_status)
                     vcd_statistic_signal_(current_timestamp, &(iter->second), &burr_hash_table,
@@ -644,8 +643,7 @@ void VCDParser::get_vcd_signal_flip_info(bool enable_gitch) {
             /* if not meet b,then parse the signals with scalar standard */
         else {
             /* Find position of matched signals, if current status is unequal to last status of the signal,parse the signal */
-            reading_buffer[last_word_position] = '\0';
-            std::string signal_alias = std::string((char *) (&reading_buffer[1]));
+            std::string signal_alias = std::string((char *) (&reading_buffer[1])).substr(0, strlen(reading_buffer));
             auto iter = vcd_signal_flip_table_.find(signal_alias);
             vcd_statistic_signal_(current_timestamp, &(iter->second), &burr_hash_table,
                                   reading_buffer[0], signal_alias);
@@ -669,7 +667,8 @@ void VCDParser::get_vcd_signal_flip_info(const std::string &module_label, bool e
     std::unordered_map<std::string, int8_t> burr_hash_table;
     fseeko64(fp_, second_position_, SEEK_SET);
     while (fgets(reading_buffer, sizeof(reading_buffer), fp_) != nullptr) {
-        size_t last_word_position = strlen(reading_buffer) - 1;
+        reading_buffer[strlen(reading_buffer) - 1] = '\0';
+        std::string read_string = reading_buffer;
 
         /* If meet #, update current time stamp */
         if (reading_buffer[0] == '#') {
@@ -682,13 +681,14 @@ void VCDParser::get_vcd_signal_flip_info(const std::string &module_label, bool e
 
         /* If meet b, parse signal by vector standard */
         if (reading_buffer[0] == 'b') {
-            reading_buffer[last_word_position] = '[';
-            size_t first_pos = std::string(reading_buffer).find_first_of(' ');
-            std::string signal_alias = std::string(&reading_buffer[first_pos + 1]);
+            std::string signal_alias = read_string.substr(read_string.find_last_of(' ') + 1, read_string.length());
+            unsigned long signal_length = (read_string.substr(1, read_string.find_first_of(' '))).length();
             if (vcd_signal_alias_table_.find(signal_alias) != vcd_signal_alias_table_.end()) {
-                size_t signal_length = first_pos;
+                /* Split the vector signals to scalar signals by its bit ,and parse them one by one */
                 for (unsigned long count = signal_length - 1; count > 0; count--) {
-                    std::string temp_alias = signal_alias + std::to_string(count - 1) + std::string("]");
+                    /* Find position of matched signals, if current status is unequal to last status of the signal, parse the signal */
+                    std::string
+                        temp_alias = signal_alias + std::string("[") + std::to_string(count - 1) + std::string("]");
                     auto iter = vcd_signal_flip_table_.find(temp_alias);
                     if (reading_buffer[signal_length - count] != iter->second.last_level_status)
                         vcd_statistic_signal_(current_timestamp, &(iter->second), &burr_hash_table,
@@ -697,8 +697,7 @@ void VCDParser::get_vcd_signal_flip_info(const std::string &module_label, bool e
             }
         } else {
             /* If not meet b, parse signal by scalar standard */
-            reading_buffer[last_word_position] = '\0';
-            std::string signal_alias = std::string((char *) (&reading_buffer[1]));
+            std::string signal_alias = std::string((char *) (&reading_buffer[1])).substr(0, strlen(reading_buffer));
             if (vcd_signal_alias_table_.find(signal_alias) != vcd_signal_alias_table_.end()) {
                 auto iter = vcd_signal_flip_table_.find(signal_alias);
                 vcd_statistic_signal_(current_timestamp, &(iter->second), &burr_hash_table,
@@ -728,7 +727,8 @@ void VCDParser::get_vcd_signal_flip_info(uint64_t begin_time, uint64_t end_time,
     static uint64_t current_timestamp = 0;
     fseeko64(fp_, second_position_, SEEK_SET);
     while (fgets(reading_buffer, sizeof(reading_buffer), fp_) != nullptr) {
-        size_t last_word_position = strlen(reading_buffer) - 1;
+        reading_buffer[strlen(reading_buffer) - 1] = '\0';
+        std::string read_string = reading_buffer;
 
         /* Update last_time_stamp and current stamp */
         if (reading_buffer[0] == '#') {
@@ -757,18 +757,21 @@ void VCDParser::get_vcd_signal_flip_info(uint64_t begin_time, uint64_t end_time,
             /* Update every signal appeared */
             case 0:
                 if (reading_buffer[0] == 'b') {
-                    reading_buffer[last_word_position] = '[';
-                    size_t first_pos = std::string(reading_buffer).find_first_of(' ');
-                    size_t signal_length = first_pos;
-                    std::string signal_alias = std::string(&reading_buffer[first_pos + 1]);
+                    std::string
+                        signal_alias = read_string.substr(read_string.find_last_of(' ') + 1, read_string.length());
+                    unsigned long signal_length = (read_string.substr(1, read_string.find_first_of(' '))).length();
+
+                    /* Split the vector signals to scalar signals by its bit ,and parse them one by one */
                     for (unsigned long count = signal_length - 1; count > 0; count--) {
-                        std::string temp_alias = signal_alias + std::to_string(count - 1) + std::string("]");
+                        /* Find position of matched signals, if current status is unequal to last status of the signal, parse the signal */
+                        std::string
+                            temp_alias = signal_alias + std::string("[") + std::to_string(count - 1) + std::string("]");
                         auto iter = vcd_signal_flip_table_.find(temp_alias);
                         iter->second.last_level_status = reading_buffer[signal_length - count];
                     }
                 } else {
-                    reading_buffer[last_word_position] = '\0';
-                    std::string signal_alias = std::string((char *) (&reading_buffer[1]));
+                    std::string
+                        signal_alias = std::string((char *) (&reading_buffer[1])).substr(0, strlen(reading_buffer));
                     auto iter = vcd_signal_flip_table_.find(signal_alias);
                     iter->second.last_level_status = reading_buffer[0];
                 }
@@ -777,20 +780,23 @@ void VCDParser::get_vcd_signal_flip_info(uint64_t begin_time, uint64_t end_time,
             case 2:
             case 1:
                 if (reading_buffer[0] == 'b') {
-                    reading_buffer[last_word_position] = '[';
-                    size_t first_pos = std::string(reading_buffer).find_first_of(' ');
-                    size_t signal_length = first_pos;
-                    std::string signal_alias = std::string(&reading_buffer[first_pos + 1]);
+                    std::string
+                        signal_alias = read_string.substr(read_string.find_last_of(' ') + 1, read_string.length());
+                    unsigned long signal_length = (read_string.substr(1, read_string.find_first_of(' '))).length();
+
+                    /* Split the vector signals to scalar signals by its bit ,and parse them one by one */
                     for (unsigned long count = signal_length - 1; count > 0; count--) {
-                        std::string temp_alias = signal_alias + std::to_string(count - 1) + std::string("]");
+                        /* Find position of matched signals, if current status is unequal to last status of the signal, parse the signal */
+                        std::string
+                            temp_alias = signal_alias + std::string("[") + std::to_string(count - 1) + std::string("]");
                         auto iter = vcd_signal_flip_table_.find(temp_alias);
                         if (reading_buffer[signal_length - count] != iter->second.last_level_status)
                             vcd_statistic_signal_(current_timestamp, &(iter->second), &burr_hash_table,
                                                   reading_buffer[signal_length - count], temp_alias);
                     }
                 } else {
-                    reading_buffer[last_word_position] = '\0';
-                    std::string signal_alias = std::string((char *) (&reading_buffer[1]));
+                    std::string
+                        signal_alias = std::string((char *) (&reading_buffer[1])).substr(0, strlen(reading_buffer));
                     auto iter = vcd_signal_flip_table_.find(signal_alias);
                     vcd_statistic_signal_(current_timestamp, &(iter->second), &burr_hash_table,
                                           reading_buffer[0], signal_alias);
@@ -825,7 +831,8 @@ void VCDParser::get_vcd_signal_flip_info(const std::string &module_label, uint64
     static uint64_t current_timestamp = 0;
     fseeko64(fp_, second_position_, SEEK_SET);
     while (fgets(reading_buffer, sizeof(reading_buffer), fp_) != nullptr) {
-        size_t last_word_position = strlen(reading_buffer) - 1;
+        reading_buffer[strlen(reading_buffer) - 1] = '\0';
+        std::string read_string = reading_buffer;
 
         /* Update last_time_stamp and current stamp */
         if (reading_buffer[0] == '#') {
@@ -853,20 +860,22 @@ void VCDParser::get_vcd_signal_flip_info(const std::string &module_label, uint64
             /* Update every signal appeared */
             case 0:
                 if (reading_buffer[0] == 'b') {
-                    reading_buffer[last_word_position] = '[';
-                    size_t first_pos = std::string(reading_buffer).find_first_of(' ');
-                    size_t signal_length = first_pos;
-                    std::string signal_alias = std::string(&reading_buffer[first_pos + 1]);
+                    std::string
+                        signal_alias = read_string.substr(read_string.find_last_of(' ') + 1, read_string.length());
+                    unsigned long signal_length = (read_string.substr(1, read_string.find_first_of(' '))).length();
                     if (vcd_signal_alias_table_.find(signal_alias) != vcd_signal_alias_table_.end()) {
+                        /* Split the vector signals to scalar signals by its bit ,and parse them one by one */
                         for (unsigned long count = signal_length - 1; count > 0; count--) {
-                            std::string temp_alias = signal_alias + std::to_string(count - 1) + std::string("]");
+                            /* Find position of matched signals, if current status is unequal to last status of the signal, parse the signal */
+                            std::string temp_alias =
+                                signal_alias + std::string("[") + std::to_string(count - 1) + std::string("]");
                             auto iter = vcd_signal_flip_table_.find(temp_alias);
                             iter->second.last_level_status = reading_buffer[signal_length - count];
                         }
                     }
                 } else {
-                    reading_buffer[last_word_position] = '\0';
-                    std::string signal_alias = std::string((char *) (&reading_buffer[1]));
+                    std::string
+                        signal_alias = std::string((char *) (&reading_buffer[1])).substr(0, strlen(reading_buffer));
                     if (vcd_signal_alias_table_.find(signal_alias) != vcd_signal_alias_table_.end()) {
                         auto iter = vcd_signal_flip_table_.find(signal_alias);
                         iter->second.last_level_status = reading_buffer[0];
@@ -877,13 +886,15 @@ void VCDParser::get_vcd_signal_flip_info(const std::string &module_label, uint64
             case 2:
             case 1:
                 if (reading_buffer[0] == 'b') {
-                    reading_buffer[last_word_position] = '[';
-                    size_t first_pos = std::string(reading_buffer).find_first_of(' ');
-                    size_t signal_length = first_pos;
-                    std::string signal_alias = std::string(&reading_buffer[first_pos + 1]);
+                    std::string
+                        signal_alias = read_string.substr(read_string.find_last_of(' ') + 1, read_string.length());
+                    unsigned long signal_length = (read_string.substr(1, read_string.find_first_of(' '))).length();
                     if (vcd_signal_alias_table_.find(signal_alias) != vcd_signal_alias_table_.end()) {
+                        /* Split the vector signals to scalar signals by its bit ,and parse them one by one */
                         for (unsigned long count = signal_length - 1; count > 0; count--) {
-                            std::string temp_alias = signal_alias + std::to_string(count - 1) + std::string("]");
+                            /* Find position of matched signals, if current status is unequal to last status of the signal, parse the signal */
+                            std::string temp_alias =
+                                signal_alias + std::string("[") + std::to_string(count - 1) + std::string("]");
                             auto iter = vcd_signal_flip_table_.find(temp_alias);
                             if (reading_buffer[signal_length - count] != iter->second.last_level_status)
                                 vcd_statistic_signal_(current_timestamp, &(iter->second), &burr_hash_table,
@@ -891,8 +902,8 @@ void VCDParser::get_vcd_signal_flip_info(const std::string &module_label, uint64
                         }
                     }
                 } else {
-                    reading_buffer[last_word_position] = '\0';
-                    std::string signal_alias = std::string((char *) (&reading_buffer[1]));
+                    std::string
+                        signal_alias = std::string((char *) (&reading_buffer[1])).substr(0, strlen(reading_buffer));
                     if (vcd_signal_alias_table_.find(signal_alias) != vcd_signal_alias_table_.end()) {
                         auto iter = vcd_signal_flip_table_.find(signal_alias);
                         vcd_statistic_signal_(current_timestamp, &(iter->second), &burr_hash_table,
