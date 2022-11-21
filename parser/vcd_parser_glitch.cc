@@ -656,7 +656,7 @@ void VCDParser::get_vcd_signal_flip_info(bool enable_gitch) {
                 std::string temp_alias = signal_alias + std::to_string(count - 1) + std::string("]");
                 auto iter = vcd_signal_flip_table_.find(temp_alias);
                 if (reading_buffer[signal_length - count] != iter->second.last_level_status)
-                    vcd_statistic_signal_(current_timestamp, &(iter.value()), &burr_hash_table,
+                    vcd_statistic_signal_(current_timestamp, &(iter->second), &burr_hash_table,
                                           reading_buffer[signal_length - count], temp_alias);
             }
         }
@@ -988,7 +988,7 @@ std::string VCDParser::get_vcd_signal_(std::string label) {
                 module += iter + "/";
             }
             module += it.first;
-            signal_title = module + "." + it.second.find(label).value().vcd_signal_title;
+            signal_title = module + "." + it.second.find(label)->second.vcd_signal_title;
             break;
         }
         if (it.first == "upscope") {
