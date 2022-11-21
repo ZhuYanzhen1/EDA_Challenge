@@ -1028,3 +1028,4 @@ void VCDParser::get_total_flips_in_time_range(uint64_t begin_time,
             signal_counter++;
     }
 }
+
