@@ -189,17 +189,17 @@ void CSVParser::csv_find_vcd() {
             continue;
 
         /* Determine what the starting bit width is.*/
-        if (csv_vcd_signal_table_.find(label).value().declare_width_start != 0) {
+        if (csv_vcd_signal_table_.find(label)->second.declare_width_start != 0) {
             int width_pos = std::stoi(width.substr(1, width.find(']') - 1));
-            width_pos = width_pos - csv_vcd_signal_table_.find(label).value().declare_width_start;
+            width_pos = width_pos - csv_vcd_signal_table_.find(label)->second.declare_width_start;
             width.clear();
             width = '[' + std::to_string(width_pos) + ']';
         }
         std::string signal_label;
         if (width.empty())
-            signal_label = csv_vcd_signal_table_.find(label).value().vcd_signal_label;
+            signal_label = csv_vcd_signal_table_.find(label)->second.vcd_signal_label;
         else
-            signal_label = csv_vcd_signal_table_.find(label).value().vcd_signal_label + width;
+            signal_label = csv_vcd_signal_table_.find(label)->second.vcd_signal_label + width;
         merge_csv_vcd_table_.insert(std::pair<std::string, struct CSVSignalStatisticStruct>(signal_label, iter.second));
     }
 }

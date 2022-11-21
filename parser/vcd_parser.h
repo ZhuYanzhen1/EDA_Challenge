@@ -14,7 +14,7 @@
 #include <map>
 #include <list>
 #include <iostream>
-#include "hopscotch_map.h"
+#include <unordered_map>
 
 /*!
      \struct VCDHeaderStruct
@@ -96,7 +96,7 @@ class VCDParser {
        \brief  Returns a statistical hash table of all signals, used only in regression tests.
        \return Hash table of all signals.
    */
-  tsl::hopscotch_map<std::string, struct VCDSignalStatisticStruct> *get_signal_flip_table() {
+  std::unordered_map<std::string, struct VCDSignalStatisticStruct> *get_signal_flip_table() {
       return &vcd_signal_flip_table_;
   }
 
@@ -129,19 +129,19 @@ class VCDParser {
   struct VCDHeaderStruct vcd_header_struct_{};
 
   /*! \brief Module hierarchy list for VCD signals. */
-  std::list<std::pair<std::string, tsl::hopscotch_map<std::string, struct VCDSignalStruct>>> vcd_signal_list_;
+  std::list<std::pair<std::string, std::unordered_map<std::string, struct VCDSignalStruct>>> vcd_signal_list_;
 
   /*! \brief Hash table for VCD signal statistics. */
-  tsl::hopscotch_map<std::string, struct VCDSignalStatisticStruct> vcd_signal_flip_table_;
+  std::unordered_map<std::string, struct VCDSignalStatisticStruct> vcd_signal_flip_table_;
 
   /*! \brief Hash table of signals to be counted when counting by module. */
-  tsl::hopscotch_map<std::string, int8_t> vcd_signal_alias_table_;
+  std::unordered_map<std::string, int8_t> vcd_signal_alias_table_;
 
   /*! \brief Hash table for storing the moment of glitch of the signal. */
-  tsl::hopscotch_map<std::string, std::list<uint64_t>> signal_glitch_position_;
+  std::unordered_map<std::string, std::list<uint64_t>> signal_glitch_position_;
 
   /*! \brief Signal name hierarchy information for signals glitch. */
-  tsl::hopscotch_map<std::string, struct VCDGlitchStruct> signal_glitch_table_;
+  std::unordered_map<std::string, struct VCDGlitchStruct> signal_glitch_table_;
 
   /*! \brief Total duration of the VCD file. */
   uint64_t total_time_{};
@@ -155,15 +155,15 @@ class VCDParser {
                                     char current_level_status, const std::string &signal_alias);
   static void vcd_statistic_signal_(uint64_t current_timestamp,
                                     struct VCDSignalStatisticStruct *signal,
-                                    tsl::hopscotch_map<std::string, int8_t> *burr_hash_table,
+                                    std::unordered_map<std::string, int8_t> *burr_hash_table,
                                     char current_level_status, const std::string &signal_alias);
   void initialize_vcd_signal_flip_table_();
   void initialize_vcd_signal_flip_table_(bool enable_gitch);
   void initialize_vcd_signal_flip_table_(const std::string &module_label);
   void initialize_vcd_signal_flip_table_(const std::string &module_label, bool enable_gitch);
   void vcd_signal_flip_post_processing_(uint64_t timestamp);
-  void vcd_signal_flip_post_processing_(uint64_t timestamp, tsl::hopscotch_map<std::string, int8_t> *burr_hash_table);
-  void vcd_statistic_glitch_(tsl::hopscotch_map<std::string, int8_t> *burr_hash_table, uint64_t current_timestamp);
+  void vcd_signal_flip_post_processing_(uint64_t timestamp, std::unordered_map<std::string, int8_t> *burr_hash_table);
+  void vcd_statistic_glitch_(std::unordered_map<std::string, int8_t> *burr_hash_table, uint64_t current_timestamp);
 };
 
 #endif //EDA_CHALLENGE_PARSER_VCD_PARSER_H_

@@ -15,7 +15,7 @@
 #include <map>
 #include <unordered_map>
 #include <list>
-#include "hopscotch_map.h"
+#include <unordered_map>
 
 /*!
   \struct CSVSignalStatisticStruct
@@ -68,10 +68,10 @@ class CSVParser {
   FILE *fp_{};
 
   /*! \brief Hash table for CSV signals statistics. */
-  tsl::hopscotch_map<std::string, struct CSVSignalStatisticStruct> csv_signal_table_;
+  std::unordered_map<std::string, struct CSVSignalStatisticStruct> csv_signal_table_;
 
   /*! \brief Hash table for VCD signals. */
-  tsl::hopscotch_map<std::string, struct CSV_VCDSignalStruct> csv_vcd_signal_table_;
+  std::unordered_map<std::string, struct CSV_VCDSignalStruct> csv_vcd_signal_table_;
 
   /*! \brief Hash table for the complete signal name. */
   std::unordered_map<std::string, struct CSVSignalStatisticStruct> merge_csv_vcd_table_;
