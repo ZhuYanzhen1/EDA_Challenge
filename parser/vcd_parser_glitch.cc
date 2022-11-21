@@ -653,7 +653,7 @@ void VCDParser::get_vcd_signal_flip_info(bool enable_gitch) {
             /* Split the vector signals to scalar signals by its bit ,and parse them one by one */
             for (unsigned long count = signal_length - 1; count > 0; count--) {
                 /* Find position of matched signals, if current status is unequal to last status of the signal, parse the signal */
-                std::string temp_alias = signal_alias + std::to_string(count - 1) + std::string("]");
+                std::string temp_alias = signal_alias + std::string("[") + std::to_string(count - 1) + std::string("]");
                 auto iter = vcd_signal_flip_table_.find(temp_alias);
                 if (reading_buffer[signal_length - count] != iter->second.last_level_status)
                     vcd_statistic_signal_(current_timestamp, &(iter->second), &burr_hash_table,
