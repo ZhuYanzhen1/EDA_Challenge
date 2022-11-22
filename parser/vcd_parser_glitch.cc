@@ -372,20 +372,7 @@ void VCDParser::get_vcd_scope(bool enable_gitch) {
 
             }
 
-            /* Save glitch and module name to storage.*/
-            if (signal_glitch_table_.find(signal_label) == signal_glitch_table_.end()) {
-                struct VCDGlitchStruct glitch;
-                std::string module_signal;
-                for (auto &iter : Module)
-                    module_signal += iter + '/';
-                module_signal.pop_back();
-                module_signal += '.' + signal->vcd_signal_title;
-                glitch.all_module_signal = module_signal;
-                if (signal->declare_width_start != 0)
-                    glitch.declare_width_start = signal->declare_width_start;
-                signal_glitch_table_.insert(std::pair<std::string, struct VCDGlitchStruct>(signal_label,
-                                                                                           glitch));
-            }
+
 
             /* Store information in a hash table.*/
             auto current_signal = vcd_signal_table_.find(signal_label);
@@ -950,6 +937,10 @@ void VCDParser::printf_glitch_csv(const std::string &filepath) {
     for (const auto &glitch : signal_glitch_position_) {
         auto *glitch_signal_buf = glitch.second;
         std::string signal_string = get_vcd_signal_(glitch.first);
+//        if (signal_string.empty()) {
+//            fprintf(glitch_fp_, "%s ", glitch.first.c_str());
+//            fprintf(glitch_fp_, "\n");
+//        }
         if (!signal_string.empty()) {
             fprintf(glitch_fp_, "%s ", signal_string.c_str());
             while (true) {
@@ -976,10 +967,11 @@ std::string VCDParser::get_vcd_signal_(std::string label) {
     std::list<std::string> all_module;
     std::string signal_title, signal_bit = "   ";
     unsigned long label_length = label.length();
-    if (label_length > 3)
-        signal_bit = label.substr(label_length - 3, label_length);
-    if (signal_bit[0] == '[' && signal_bit[2] == ']')
-        label = label.substr(0, (label_length - 3));
+    if (label_length > 3) {
+        signal_bit = label.substr(label.rfind('['), label_length - label.rfind('['));
+    }
+    if (signal_bit[0] == '[' && signal_bit[signal_bit.length() - 1] == ']')
+        label = label.substr(0, (label_length - signal_bit.length()));
 
     for (auto &it : vcd_signal_list_) {
         if (it.second.find(label) != it.second.end()) {
@@ -997,7 +989,7 @@ std::string VCDParser::get_vcd_signal_(std::string label) {
         }
         all_module.emplace_back(it.first);
     }
-    if (signal_bit[0] == '[' && signal_bit[2] == ']')
+    if (signal_bit[0] == '[' && signal_bit[signal_bit.length() - 1] == ']')
         signal_title = signal_title + signal_bit;
     return signal_title;
 }
