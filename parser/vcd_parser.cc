@@ -302,6 +302,7 @@ void VCDParser::get_vcd_scope() {
     std::unordered_map<std::string, struct VCDSignalStruct> vcd_signal_table_;
     vcd_signal_table_.clear();
     vcd_signal_list_.clear();
+    std::list<std::string> Module;
     while (fgets(reading_buffer, sizeof(reading_buffer), fp_) != nullptr) {
         reading_buffer[strlen(reading_buffer) - 1] = '\0';
         std::string read_string = reading_buffer;

@@ -119,7 +119,6 @@ class VCDParser {
   void get_total_flips_in_time_range(uint64_t begin_time, uint64_t end_time,
                                      std::vector<double> *x_value,
                                      std::vector<double> *y_value);
-  std::string get_vcd_signal_(std::string label);
 
  private:
   struct SignalGlitchStruct { uint32_t counter; uint64_t *buffer;struct SignalGlitchStruct *next; };
@@ -141,7 +140,7 @@ class VCDParser {
   std::unordered_map<std::string, int8_t> vcd_signal_alias_table_;
 
   /*! \brief Hash table for storing the moment of glitch of the signal. */
-  std::unordered_map<std::string, struct SignalGlitchStruct *> signal_glitch_position_;;
+  std::unordered_map<std::string, std::list<uint64_t>> signal_glitch_position_;;
 
   /*! \brief Signal name hierarchy information for signals glitch. */
   std::unordered_map<std::string, struct VCDGlitchStruct> signal_glitch_table_;

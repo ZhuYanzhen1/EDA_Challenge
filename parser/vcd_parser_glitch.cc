@@ -250,27 +250,12 @@ void VCDParser::vcd_statistic_glitch_(std::unordered_map<std::string, int8_t> *b
                                       uint64_t current_timestamp) {
     for (const auto &glitch : *burr_hash_table) {
         auto signal_pos = signal_glitch_position_.find(glitch.first);
-        if (signal_pos != signal_glitch_position_.end()) {
-            auto *glitch_signal_buf = signal_pos->second;
-            while (glitch_signal_buf->next != nullptr)
-                glitch_signal_buf = glitch_signal_buf->next;
-            if (glitch_signal_buf->counter == kglitch_max_size) {
-                auto *new_signal_buf = new struct SignalGlitchStruct;
-                new_signal_buf->buffer = new uint64_t[kglitch_max_size];
-                new_signal_buf->next = nullptr;
-                new_signal_buf->counter = 0;
-                new_signal_buf->buffer[new_signal_buf->counter++] = current_timestamp;
-                glitch_signal_buf->next = new_signal_buf;
-            } else
-                glitch_signal_buf->buffer[glitch_signal_buf->counter++] = current_timestamp;
-        } else {
-            auto *glitch_signal_buf = new struct SignalGlitchStruct;
-            glitch_signal_buf->buffer = new uint64_t[kglitch_max_size];
-            glitch_signal_buf->next = nullptr;
-            glitch_signal_buf->counter = 0;
-            glitch_signal_buf->buffer[glitch_signal_buf->counter++] = current_timestamp;
-            signal_glitch_position_.insert(std::pair<std::string, struct SignalGlitchStruct *>
-                                               (glitch.first, glitch_signal_buf));
+        if (signal_pos != signal_glitch_position_.end())
+            signal_pos->second.emplace_back(current_timestamp);
+        else {
+            std::list<uint64_t> signal_list;
+            signal_list.emplace_back(current_timestamp);
+            signal_glitch_position_.insert(std::pair<std::string, std::list<uint64_t>>(glitch.first, signal_list));
         }
     }
 }
@@ -372,6 +357,19 @@ void VCDParser::get_vcd_scope(bool enable_gitch) {
 
             }
 
+            if (signal_glitch_table_.find(signal_label) == signal_glitch_table_.end()) {
+                std::string all_module_signal;
+                for (auto &iter : Module)
+                    all_module_signal += iter + '/';
+                all_module_signal.pop_back();
+                all_module_signal += '.' + signal->vcd_signal_title;
+                VCDGlitchStruct glitch;
+                glitch.all_module_signal = all_module_signal;
+                if (signal->declare_width_start != 0)
+                    glitch.declare_width_start = signal->declare_width_start;
+                signal_glitch_table_.insert(std::pair<std::string, struct VCDGlitchStruct>(signal_label,
+                                                                                           glitch));
+            }
 
 
             /* Store information in a hash table.*/
@@ -935,61 +933,30 @@ void VCDParser::printf_glitch_csv(const std::string &filepath) {
     clock_t startTime = clock();
     FILE *glitch_fp_ = fopen64(filepath.c_str(), "w");
     for (const auto &glitch : signal_glitch_position_) {
-        auto *glitch_signal_buf = glitch.second;
-        std::string signal_string = get_vcd_signal_(glitch.first);
-//        if (signal_string.empty()) {
-//            fprintf(glitch_fp_, "%s ", glitch.first.c_str());
-//            fprintf(glitch_fp_, "\n");
-//        }
-        if (!signal_string.empty()) {
-            fprintf(glitch_fp_, "%s ", signal_string.c_str());
-            while (true) {
-                for (int counter = 0; counter < glitch_signal_buf->counter; ++counter)
-                    fprintf(glitch_fp_,
-                            "%lu%s ",
-                            glitch_signal_buf->buffer[counter] * vcd_header_struct_.vcd_time_scale,
-                            vcd_header_struct_.vcd_time_unit.c_str());
-                delete glitch_signal_buf->buffer;
-                if (glitch_signal_buf->next != nullptr)
-                    glitch_signal_buf = glitch_signal_buf->next;
-                else
-                    break;
+        /* Cut the bit width of the vector signal label.*/
+        uint64_t last_pos = glitch.first.find_last_of('['), signal_alias_length = glitch.first.length();
+        std::string label = glitch.first.substr(0, last_pos), signal_bit;
+        if (last_pos != std::string::npos && signal_alias_length - last_pos != 2
+            && glitch.first[signal_alias_length - 1] == ']')
+            signal_bit = glitch.first.substr(last_pos);
+
+        auto signal_module_it = signal_glitch_table_.find(label);
+        if (signal_module_it != signal_glitch_table_.end()) {
+            /* Determine whether the start bit width is 0.*/
+            if (signal_module_it->second.declare_width_start != 0) {
+                int wid_pos = std::stoi(signal_bit.substr(1, signal_bit.length() - 1))
+                    + signal_module_it->second.declare_width_start;
+                signal_bit = std::string("[") + std::to_string(wid_pos) + std::string("]");
             }
-            delete glitch_signal_buf;
-            fprintf(glitch_fp_, "\n");
+
+            /* Output module title and glitch.*/
+            std::string glitch_info = signal_module_it->second.all_module_signal + signal_bit;
+            for (auto &it : glitch.second)
+                glitch_info += std::to_string(it * vcd_header_struct_.vcd_time_scale)
+                    + vcd_header_struct_.vcd_time_unit + " ";
+            fprintf(glitch_fp_, "%s\n", glitch_info.c_str());
         }
     }
     fclose(glitch_fp_);
     std::cout << "Print glitch time: " << (double) (clock() - startTime) / CLOCKS_PER_SEC << "s\n";
-}
-
-std::string VCDParser::get_vcd_signal_(std::string label) {
-    std::list<std::string> all_module;
-    std::string signal_title, signal_bit = "   ";
-    unsigned long label_length = label.length();
-    if (label_length > 3) {
-        signal_bit = label.substr(label.rfind('['), label_length - label.rfind('['));
-    }
-    if (signal_bit[0] == '[' && signal_bit[signal_bit.length() - 1] == ']')
-        label = label.substr(0, (label_length - signal_bit.length()));
-
-    for (auto &it : vcd_signal_list_) {
-        if (it.second.find(label) != it.second.end()) {
-            std::string module;
-            for (auto &iter : all_module) {
-                module += iter + "/";
-            }
-            module += it.first;
-            signal_title = module + "." + it.second.find(label)->second.vcd_signal_title;
-            break;
-        }
-        if (it.first == "upscope") {
-            all_module.pop_back();
-            continue;
-        }
-        all_module.emplace_back(it.first);
-    }
-    if (signal_bit[0] == '[' && signal_bit[signal_bit.length() - 1] == ']')
-        signal_title = signal_title + signal_bit;
-    return signal_title;
 }
