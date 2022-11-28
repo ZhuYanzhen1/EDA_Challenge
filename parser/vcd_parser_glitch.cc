@@ -620,8 +620,7 @@ void VCDParser::get_vcd_signal_flip_info(bool enable_gitch) {
     std::unordered_map<std::string, int8_t> burr_hash_table;
     fseeko64(fp_, second_position_, SEEK_SET);
     while (fgets(reading_buffer, sizeof(reading_buffer), fp_) != nullptr) {
-        reading_buffer[strlen(reading_buffer) - 1] = '\0';
-        std::string read_string = reading_buffer;
+        size_t last_word_position = strlen(reading_buffer) - 1;
 
         /* Print glitches information */
         if (reading_buffer[0] == '#') {
@@ -634,13 +633,15 @@ void VCDParser::get_vcd_signal_flip_info(bool enable_gitch) {
 
         /* If meet b,parse the signal as vector standard */
         if (reading_buffer[0] == 'b') {
-            std::string signal_alias = read_string.substr(read_string.find_last_of(' ') + 1, read_string.length());
-            unsigned long signal_length = (read_string.substr(1, read_string.find_first_of(' '))).length();
+            reading_buffer[last_word_position] = '[';
+            size_t first_pos = std::string(reading_buffer).find_first_of(' ');
+            size_t signal_length = first_pos;
+            std::string signal_alias = std::string(&reading_buffer[first_pos + 1]);
 
             /* Split the vector signals to scalar signals by its bit ,and parse them one by one */
             for (unsigned long count = signal_length - 1; count > 0; count--) {
                 /* Find position of matched signals, if current status is unequal to last status of the signal, parse the signal */
-                std::string temp_alias = signal_alias + std::string("[") + std::to_string(count - 1) + std::string("]");
+                std::string temp_alias = signal_alias + std::to_string(count - 1) + std::string("]");
                 auto iter = vcd_signal_flip_table_.find(temp_alias);
                 if (reading_buffer[signal_length - count] != iter->second.last_level_status)
                     vcd_statistic_signal_(current_timestamp, &(iter->second), &burr_hash_table,
@@ -650,7 +651,8 @@ void VCDParser::get_vcd_signal_flip_info(bool enable_gitch) {
             /* if not meet b,then parse the signals with scalar standard */
         else {
             /* Find position of matched signals, if current status is unequal to last status of the signal,parse the signal */
-            std::string signal_alias = std::string((char *) (&reading_buffer[1])).substr(0, strlen(reading_buffer));
+            reading_buffer[last_word_position] = '\0';
+            std::string signal_alias = std::string((char *) (&reading_buffer[1]));
             auto iter = vcd_signal_flip_table_.find(signal_alias);
             vcd_statistic_signal_(current_timestamp, &(iter->second), &burr_hash_table,
                                   reading_buffer[0], signal_alias);
